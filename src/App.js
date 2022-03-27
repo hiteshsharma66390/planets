@@ -19,14 +19,17 @@ const FILTERS = {
 };
 function App() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState({});
+  const [filters, setFilters] = useState({
+    color: [],
+    shape: [],
+    size: [],
+  });
   const [planetList, setPlanetList] = useState([]);
   const getPlanetList = (searchQuery) => {
     const url = `http://localhost:3000/planets?q=${searchQuery}`;
     const { pathname } = window.location;
     window.history.replaceState({}, "", `?query=${searchQuery}`);
     axios.get(url).then((res) => {
-      console.log(res.data);
       setPlanetList(res.data);
     });
   };
@@ -38,11 +41,60 @@ function App() {
     setSearchQuery(event.target.value);
   };
 
+  const updateFilter = (e) => {
+    const checkBox = e.target;
+    const checkBoxFilterName = checkBox
+      .getAttribute("data-filterName")
+      .toLowerCase();
+    if (checkBox.checked) {
+      setFilters((prevState) => ({
+        ...prevState,
+        [checkBoxFilterName]: [
+          ...filters[checkBoxFilterName],
+          checkBox.name.toLowerCase(),
+        ],
+      }));
+    } else {
+      setFilters((prevState) => ({
+        ...prevState,
+        [checkBoxFilterName]: filters[checkBoxFilterName].filter(
+          (f) => f !== checkBox.name.toLowerCase()
+        ),
+      }));
+    }
+  };
+
   useEffect(() => {
     const { search } = window.location;
-    const queryKeyList = search.replace("?", "").split("&");
-    console.log(queryKeyList);
-  }, [searchQuery, planetList]);
+    const queryStringList = search.replace("?", "").split("&");
+    queryStringList.forEach((query) => {
+      const queryList = query.split("=");
+      const queryName = queryList[0];
+      const queryValue = queryList[1];
+      if (queryName === "query") setSearchQuery(queryValue);
+      if (queryName === "color") {
+        const colorList = queryValue.split("|");
+        setFilters((prevState) => ({
+          ...prevState,
+          ["color"]: colorList,
+        }));
+      }
+      if (queryName === "shape") {
+        const shapeList = queryValue.split("|");
+        setFilters((prevState) => ({
+          ...prevState,
+          ["shape"]: shapeList,
+        }));
+      }
+      if (queryName === "size") {
+        const sizeList = queryValue.split("|");
+        setFilters((prevState) => ({
+          ...prevState,
+          ["size"]: sizeList,
+        }));
+      }
+    });
+  }, [planetList]);
 
   return (
     <div className="App">
@@ -66,7 +118,6 @@ function App() {
         <div className="main-wrapper full-width displayFlex">
           <div className="filter-wrapper">
             {Object.keys(FILTERS).map((filterName) => {
-              console.log(filterName);
               return (
                 <div className="filter">
                   <label htmlFor="color" className="text-capitalize">
@@ -80,6 +131,9 @@ function App() {
                           type="checkbox"
                           value=""
                           id="green"
+                          data-filterName={filterName}
+                          name={filterValue}
+                          onChange={(e) => updateFilter(e)}
                         />
                         <label
                           className="form-check-label text-capitalize"
@@ -103,10 +157,6 @@ function App() {
                       <h5 className="card-title">{planet.name}</h5>
                       <p className="card-text">
                         Lorem ipsum dolor sit amet consectetur adipisicing elit.
-                        Tenetur, recusandae alias? Necessitatibus provident,
-                        beatae nesciunt deserunt eveniet iure perspiciatis,
-                        facere ratione at magni blanditiis id saepe dolorum,
-                        aspernatur maiores reprehenderit.
                       </p>
                     </div>
                   </div>
