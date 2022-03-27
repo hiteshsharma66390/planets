@@ -1,100 +1,125 @@
 import "./App.css";
 import { useState, useEffect } from "react";
 import axios from "axios";
-const FILTERS = {
-  COLOR: {
-    RED: "red",
-    GREEN: "green",
-    BLUE: "blue",
-  },
-  SHAPE: {
-    SMALL: "small",
-    MEDIUM: "medium",
-    LARGE: "large",
-  },
-  SIZE: {
-    ROUND: "round",
-    OVAL: "oval",
-  },
-};
+import ACTIONS from "./redux/actions";
+import { useDispatch, useSelector } from "react-redux";
+import categoriesArray from "./utility/constant";
+
 function App() {
+  const dispatch = useDispatch();
+  const filterState = useSelector((state) => state);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({
-    color: [],
-    shape: [],
-    size: [],
-  });
+  const [allFilters, setAllFilters] = useState({});
   const [planetList, setPlanetList] = useState([]);
-  const getPlanetList = (searchQuery) => {
-    const url = `http://localhost:3000/planets?q=${searchQuery}`;
-    const { pathname } = window.location;
-    window.history.replaceState({}, "", `?query=${searchQuery}`);
+
+  const getPlanetList = () => {
+    let queryString = "";
+    let isSearchQuery = false;
+    let url = `http://localhost:3000/planets`;
+    if (searchQuery.length > 0) {
+      isSearchQuery = true;
+      queryString = `?q=${searchQuery}`;
+    }
+    Object.keys(filterState).forEach((filterKeyName) => {
+      const tempList = filterState[filterKeyName.toLowerCase()];
+
+      if (filterState[filterKeyName].length > 0) {
+        if (isSearchQuery) {
+          queryString += `&${filterKeyName
+            .toLowerCase()
+            .slice(0, filterKeyName.length - 1)}=`;
+          isSearchQuery = false;
+        } else {
+          queryString += `?${filterKeyName
+            .toLowerCase()
+            .slice(0, filterKeyName.length - 1)}=`;
+        }
+      }
+      tempList.forEach((filterKeyValue, index) => {
+        if (index > 0) queryString += "|" + filterKeyValue;
+        else queryString += filterKeyValue;
+      });
+    });
+
+    if (queryString.length > 0) {
+      axios.get(url + queryString).then((res) => {
+        setPlanetList(res.data);
+      });
+    }
+  };
+
+  const getFilterList = (filterType) => {
+    const url = `http://localhost:3000/${filterType}`;
     axios.get(url).then((res) => {
-      setPlanetList(res.data);
+      setAllFilters((prevState) => ({
+        ...prevState,
+        [filterType]: res.data,
+      }));
     });
   };
   const searchPlanets = (event) => {
-    // if (event.key === "Enter") {
-    //   getPlanetList(searchQuery);
-    // }
-
     setSearchQuery(event.target.value);
   };
 
   const updateFilter = (e) => {
     const checkBox = e.target;
-    const checkBoxFilterName = checkBox
-      .getAttribute("data-filterName")
+    const checkBoxFilterType = checkBox
+      .getAttribute("data-filterType")
       .toLowerCase();
-    if (checkBox.checked) {
-      setFilters((prevState) => ({
-        ...prevState,
-        [checkBoxFilterName]: [
-          ...filters[checkBoxFilterName],
-          checkBox.name.toLowerCase(),
-        ],
-      }));
-    } else {
-      setFilters((prevState) => ({
-        ...prevState,
-        [checkBoxFilterName]: filters[checkBoxFilterName].filter(
-          (f) => f !== checkBox.name.toLowerCase()
-        ),
-      }));
-    }
+    const checkBoxId = checkBox.id;
+    dispatch(
+      ACTIONS.updateFilters({
+        type: "SET_FILTERS",
+        payload: {
+          isChecked: checkBox.checked,
+          checkboxFilterType: checkBoxFilterType,
+          checkboxFilterId: checkBoxId,
+        },
+      })
+    );
   };
 
+  // useEffect(() => {
+  //   const { search } = window.location;
+  //   const queryStringList = search.replace("?", "").split("&");
+  //   queryStringList.forEach((query) => {
+  //     const queryList = query.split("=");
+  //     const queryName = queryList[0];
+  //     const queryValue = queryList[1];
+  //     if (queryName === "query") setSearchQuery(queryValue);
+  //     if (queryName === "color") {
+  //       const colorList = queryValue.split("|");
+  //       setFilters((prevState) => ({
+  //         ...prevState,
+  //         ["color"]: colorList,
+  //       }));
+  //     }
+  //     if (queryName === "shape") {
+  //       const shapeList = queryValue.split("|");
+  //       setFilters((prevState) => ({
+  //         ...prevState,
+  //         ["shape"]: shapeList,
+  //       }));
+  //     }
+  //     if (queryName === "size") {
+  //       const sizeList = queryValue.split("|");
+  //       setFilters((prevState) => ({
+  //         ...prevState,
+  //         ["size"]: sizeList,
+  //       }));
+  //     }
+  //   });
+  // }, [planetList]);
+
   useEffect(() => {
-    const { search } = window.location;
-    const queryStringList = search.replace("?", "").split("&");
-    queryStringList.forEach((query) => {
-      const queryList = query.split("=");
-      const queryName = queryList[0];
-      const queryValue = queryList[1];
-      if (queryName === "query") setSearchQuery(queryValue);
-      if (queryName === "color") {
-        const colorList = queryValue.split("|");
-        setFilters((prevState) => ({
-          ...prevState,
-          ["color"]: colorList,
-        }));
-      }
-      if (queryName === "shape") {
-        const shapeList = queryValue.split("|");
-        setFilters((prevState) => ({
-          ...prevState,
-          ["shape"]: shapeList,
-        }));
-      }
-      if (queryName === "size") {
-        const sizeList = queryValue.split("|");
-        setFilters((prevState) => ({
-          ...prevState,
-          ["size"]: sizeList,
-        }));
-      }
+    getPlanetList();
+  }, [filterState]);
+
+  useEffect(() => {
+    categoriesArray.forEach((element) => {
+      getFilterList(element);
     });
-  }, [planetList]);
+  }, []);
 
   return (
     <div className="App">
@@ -110,36 +135,36 @@ function App() {
           />
           <div
             className="search-button displayFlex"
-            onClick={() => getPlanetList(searchQuery)}
+            onClick={() => getPlanetList()}
           >
             <i className="fa fa-search" aria-hidden="true"></i>
           </div>
         </div>
         <div className="main-wrapper full-width displayFlex">
           <div className="filter-wrapper">
-            {Object.keys(FILTERS).map((filterName) => {
+            {Object.keys(allFilters).map((filterName) => {
               return (
                 <div className="filter">
                   <label htmlFor="color" className="text-capitalize">
                     {filterName}
                   </label>
-                  {Object.keys(FILTERS[filterName]).map((filterValue) => {
+                  {allFilters[filterName]?.map((filterValue) => {
                     return (
                       <div className="form-check">
                         <input
                           className="form-check-input"
                           type="checkbox"
                           value=""
-                          id="green"
-                          data-filterName={filterName}
-                          name={filterValue}
+                          id={filterValue.id}
+                          data-filterType={filterName}
+                          name={filterValue.name}
                           onChange={(e) => updateFilter(e)}
                         />
                         <label
                           className="form-check-label text-capitalize"
                           for="flexCheckDefault"
                         >
-                          {FILTERS[filterName][filterValue]}
+                          {filterValue.name}
                         </label>
                       </div>
                     );

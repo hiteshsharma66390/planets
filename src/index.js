@@ -5,10 +5,20 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "font-awesome/css/font-awesome.min.css";
+import { Provider } from "react-redux";
+import configureStore from "./redux/store";
+
+const reduxStore = configureStore({
+  colors: [],
+  shapes: [],
+  sizes: [],
+});
 
 ReactDOM.render(
   <React.StrictMode>
-    <App />
+    <Provider store={reduxStore}>
+      <App />
+    </Provider>
   </React.StrictMode>,
   document.getElementById("root")
 );
