@@ -14,34 +14,25 @@ function App() {
 
   const getPlanetList = () => {
     let queryString = "";
-    let isSearchQuery = false;
     let url = `http://localhost:3000/planets`;
+    const filterArr = [];
     if (searchQuery.length > 0) {
-      isSearchQuery = true;
-      queryString = `?q=${searchQuery}`;
+      filterArr.push(`q=${searchQuery}`);
     }
     Object.keys(filterState).forEach((filterKeyName) => {
       const tempList = filterState[filterKeyName.toLowerCase()];
-
-      if (filterState[filterKeyName].length > 0) {
-        if (isSearchQuery) {
-          queryString += `&${filterKeyName
+      if (tempList.length > 0) {
+        filterArr.push(
+          `${filterKeyName
             .toLowerCase()
-            .slice(0, filterKeyName.length - 1)}=`;
-          isSearchQuery = false;
-        } else {
-          queryString += `?${filterKeyName
-            .toLowerCase()
-            .slice(0, filterKeyName.length - 1)}=`;
-        }
+            .slice(0, filterKeyName.length - 1)}=${tempList?.join("|")}`
+        );
       }
-      tempList.forEach((filterKeyValue, index) => {
-        if (index > 0) queryString += "|" + filterKeyValue;
-        else queryString += filterKeyValue;
-      });
     });
-
+    queryString = `?${filterArr.join("&")}`;
     if (queryString.length > 0) {
+      // const { history } = window.location;
+      window.history.replaceState({}, "", queryString);
       axios.get(url + queryString).then((res) => {
         setPlanetList(res.data);
       });
@@ -79,37 +70,32 @@ function App() {
     );
   };
 
-  // useEffect(() => {
-  //   const { search } = window.location;
-  //   const queryStringList = search.replace("?", "").split("&");
-  //   queryStringList.forEach((query) => {
-  //     const queryList = query.split("=");
-  //     const queryName = queryList[0];
-  //     const queryValue = queryList[1];
-  //     if (queryName === "query") setSearchQuery(queryValue);
-  //     if (queryName === "color") {
-  //       const colorList = queryValue.split("|");
-  //       setFilters((prevState) => ({
-  //         ...prevState,
-  //         ["color"]: colorList,
-  //       }));
-  //     }
-  //     if (queryName === "shape") {
-  //       const shapeList = queryValue.split("|");
-  //       setFilters((prevState) => ({
-  //         ...prevState,
-  //         ["shape"]: shapeList,
-  //       }));
-  //     }
-  //     if (queryName === "size") {
-  //       const sizeList = queryValue.split("|");
-  //       setFilters((prevState) => ({
-  //         ...prevState,
-  //         ["size"]: sizeList,
-  //       }));
-  //     }
-  //   });
-  // }, [planetList]);
+  useEffect(() => {
+    const { search } = window.location;
+    const queryStringList = search.replace("?", "").split("&");
+    queryStringList?.forEach((queryElem) => {
+      const queryElemList = queryElem.split("=");
+      if (queryElemList[0] === "q") setSearchQuery(queryElemList[1]);
+      else if (
+        queryElemList[0] === "color" ||
+        queryElemList[0] === "shape" ||
+        queryElemList[0] === "size"
+      ) {
+        queryElemList[1].split("|").forEach((queryElemListValue) => {
+          dispatch(
+            ACTIONS.updateFilters({
+              type: "SET_FILTERS",
+              payload: {
+                isChecked: true,
+                checkboxFilterType: `${queryElemList[0]}s`,
+                checkboxFilterId: queryElemListValue,
+              },
+            })
+          );
+        });
+      }
+    });
+  }, []);
 
   useEffect(() => {
     getPlanetList();
@@ -120,7 +106,6 @@ function App() {
       getFilterList(element);
     });
   }, []);
-
   return (
     <div className="App">
       <div className="container">
@@ -132,6 +117,7 @@ function App() {
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => searchPlanets(e)}
+            onKeyPress={(e) => e.key === "Enter" && getPlanetList()}
           />
           <div
             className="search-button displayFlex"
@@ -144,26 +130,32 @@ function App() {
           <div className="filter-wrapper">
             {Object.keys(allFilters).map((filterName) => {
               return (
-                <div className="filter">
+                <div className="filter" key={filterName}>
                   <label htmlFor="color" className="text-capitalize">
                     {filterName}
                   </label>
                   {allFilters[filterName]?.map((filterValue) => {
+                    // const filterNamePlural = `${filterName}s`;
                     return (
-                      <div className="form-check">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          value=""
-                          id={filterValue.id}
-                          data-filterType={filterName}
-                          name={filterValue.name}
-                          onChange={(e) => updateFilter(e)}
-                        />
+                      <div className="form-check" key={filterValue.name}>
                         <label
                           className="form-check-label text-capitalize"
                           for="flexCheckDefault"
                         >
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            value=""
+                            id={filterValue.id}
+                            data-filterType={filterName}
+                            name={filterValue.name}
+                            checked={
+                              filterState[filterName]?.findIndex((item) => {
+                                return item === filterValue.id;
+                              }) !== -1
+                            }
+                            onChange={(e) => updateFilter(e)}
+                          />
                           {filterValue.name}
                         </label>
                       </div>

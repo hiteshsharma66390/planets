@@ -1,6 +1,6 @@
 import Actions from "./actions";
 
-const updateFilterReducer = (state, action) => {
+const updateFilterReducer = (state = {}, action) => {
   switch (action.type) {
     case Actions.Types.UPDATE_FILTERS: {
       let item = action.payload;
